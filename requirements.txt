@@ -4,10 +4,18 @@ annotated-doc==0.0.4
     # via typer
 annotated-types==0.7.0
     # via pydantic
+certifi==2026.6.17
+    # via requests
+charset-normalizer==3.4.7
+    # via requests
 click==8.4.2
-    # via writeup (pyproject.toml)
+    # via writeup-automatizator (pyproject.toml)
+idna==3.18
+    # via requests
 jinja2==3.1.6
-    # via writeup (pyproject.toml)
+    # via writeup-automatizator (pyproject.toml)
+markdown==3.10.2
+    # via writeup-automatizator (pyproject.toml)
 markdown-it-py==4.2.0
     # via rich
 markupsafe==3.0.3
@@ -15,19 +23,23 @@ markupsafe==3.0.3
 mdurl==0.1.2
     # via markdown-it-py
 pydantic==2.13.4
-    # via writeup (pyproject.toml)
+    # via writeup-automatizator (pyproject.toml)
 pydantic-core==2.46.4
     # via pydantic
 pygments==2.20.0
     # via rich
+requests==2.34.2
+    # via telegraph
 rich==15.0.0
     # via
-    #   writeup (pyproject.toml)
+    #   writeup-automatizator (pyproject.toml)
     #   typer
 shellingham==1.5.4
     # via typer
+telegraph==2.2.0
+    # via writeup-automatizator (pyproject.toml)
 typer==0.26.8
-    # via writeup (pyproject.toml)
+    # via writeup-automatizator (pyproject.toml)
 typing-extensions==4.15.0
     # via
     #   pydantic
@@ -35,3 +47,5 @@ typing-extensions==4.15.0
     #   typing-inspection
 typing-inspection==0.4.2
     # via pydantic
+urllib3==2.7.0
+    # via requests

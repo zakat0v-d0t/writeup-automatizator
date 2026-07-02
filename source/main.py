@@ -1,65 +1,26 @@
 import typer
 from rich.console import Console
 from rich.prompt import Prompt
+from rich.table import Table
 import datetime
 import os
-from jinja2 import Environment, FileSystemLoader
-from pydantic import BaseModel
-from typing import List, Optional
+import click
+from typing import Optional
+import json
+
+from .models import Step, WriteupContext
+from .utils import detect_language
+from .services import WriteupManager, TelegraphService
 
 app = typer.Typer(help="writeup-automatizator")
 console = Console()
 
-class Step(BaseModel):
-    title: str
-    description: str
-    commands: Optional[str] = ""
-    language: Optional[str] = "bash"
-
-def detect_language(code: str) -> str:
-    if not code:
-        return "bash"
-    
-    if any(kw in code for kw in ["import ", "def ", "print(", "sys.", "requests.", "from "]):
-        return "python"
-    
-    if any(kw in code for kw in ["#include", "int main", "printf(", "std::"]):
-        return "c"
-        
-    code_lower = code.lower()
-    if any(kw in code_lower for kw in ["select ", "union ", "insert ", "drop ", "where "]):
-        return "sql"
-        
-    if any(kw in code for kw in ["console.log", "const ", "let ", "=>", "function("]):
-        return "javascript"
-        
-    if "<?php" in code or "$_GET" in code or "$_POST" in code or "echo $" in code:
-        return "php"
-        
-    if code.strip().startswith("{") and code.strip().endswith("}"):
-        return "json"
-        
-    if any(kw in code_lower for kw in ["mov ", "push ", "pop ", "xor ", "eax,", "rax,", "jmp ", "ret"]):
-        return "asm"
-        
-    return "bash"
-
-class WriteupContext(BaseModel):
-    title: str
-    category: str
-    difficulty: str
-    flag: str
-    description: str
-    link: Optional[str] = ""
-    team: str
-    date: str
-    steps: List[Step] = []
-
-TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
-env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
-
 @app.command()
-def init():
+def init(
+    output_dir: Optional[str] = typer.Option(
+        None, "--output-dir", "-o", help="Директория для сохранения райтапов"
+    )
+):
     """
     Интерактивное создание нового writeup'а.
     """
@@ -73,16 +34,15 @@ def init():
     link = Prompt.ask("Ссылка на таск (опционально)", default="")
     team = Prompt.ask("Команда/Автор", default="r007s")
     
-
     steps = []
-    console.print("\n[bold cyan]Шаги решения[/bold cyan]")
+    console.print("\\n[bold cyan]Шаги решения[/bold cyan]")
     while True:
         step_title = Prompt.ask("Заголовок шага (оставьте пустым для завершения)", default="")
         if not step_title:
             break
         step_desc = Prompt.ask("Описание того, что делал", default="")
-        step_cmds = Prompt.ask("Команды (опционально, используйте \\n для переносов)", default="")
-        cmds_formatted = step_cmds.replace("\\n", "\n")
+        step_cmds = Prompt.ask("Команды (опционально, используйте \\\\n для переносов)", default="")
+        cmds_formatted = step_cmds.replace("\\\\n", "\\n")
         lang = detect_language(cmds_formatted)
         steps.append(Step(title=step_title, description=step_desc, commands=cmds_formatted, language=lang))
     
@@ -100,31 +60,12 @@ def init():
         steps=steps
     )
     
-
-    template_name = "default.md"
+    manager = WriteupManager(base_dir=output_dir)
     try:
-        template = env.get_template(template_name)
+        output_path = manager.save_writeup(context, str(datetime.date.today().year))
+        console.print(f"\\n[bold green]✔ Writeup сгенерирован:[/bold green] {output_path}")
     except Exception as e:
-        console.print(f"[bold red]Ошибка загрузки шаблона:[/bold red] {e}")
-        return
-
-    content = template.render(**context.model_dump())
-    
-
-    safe_title = title.lower().replace(" ", "_").replace("'", "").replace('"', '')
-    output_dir = os.path.join(os.getcwd(), "writeups", str(datetime.date.today().year), category)
-    os.makedirs(output_dir, exist_ok=True)
-    
-    json_path = os.path.join(output_dir, f"{safe_title}.json")
-    with open(json_path, "w", encoding="utf-8") as f:
-        f.write(context.model_dump_json(indent=4))
-        
-    output_path = os.path.join(output_dir, f"{safe_title}.md")
-    
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(content)
-        
-    console.print(f"\n[bold green]✔ Writeup сгенерирован:[/bold green] {output_path}")
+        console.print(f"[bold red]Ошибка сохранения:[/bold red] {e}")
 
 @app.command()
 def edit(
@@ -139,12 +80,11 @@ def edit(
         console.print(f"[bold red]Файл не найден:[/bold red] {filepath}")
         raise typer.Exit(code=1)
     
-    import click
     click.edit(filename=filepath, editor=editor)
     console.print(f"[bold green]✔ Файл сохранен:[/bold green] {filepath}")
     
     if filepath.endswith(".json"):
-        console.print("[bold cyan]Запустите `writeup generate <путь_к_json>` для обновления .md файла.[/bold cyan]")
+        console.print("[bold cyan]Запустите `wup generate <путь_к_json>` для обновления .md файла.[/bold cyan]")
 
 @app.command()
 def generate(json_path: str):
@@ -155,42 +95,22 @@ def generate(json_path: str):
         console.print(f"[bold red]Ожидается путь к .json файлу:[/bold red] {json_path}")
         raise typer.Exit(code=1)
     
-    import json
+    manager = WriteupManager()
     try:
-        with open(json_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        context = WriteupContext(**data)
+        output_path = manager.generate_markdown(json_path)
+        console.print(f"[bold green]✔ Writeup обновлен:[/bold green] {output_path}")
     except Exception as e:
-        console.print(f"[bold red]Ошибка чтения JSON:[/bold red] {e}")
+        console.print(f"[bold red]Ошибка генерации:[/bold red] {e}")
         raise typer.Exit(code=1)
-        
-    template_name = "default.md"
-    try:
-        template = env.get_template(template_name)
-    except Exception as e:
-        console.print(f"[bold red]Ошибка загрузки шаблона:[/bold red] {e}")
-        raise typer.Exit(code=1)
-        
-    content = template.render(**context.model_dump())
-    
-    output_path = json_path.replace(".json", ".md")
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(content)
-        
-    console.print(f"[bold green]✔ Writeup обновлен:[/bold green] {output_path}")
 
 @app.command(name="auth-telegraph")
 def auth_telegraph(short_name: str):
     """
     Создать новый аккаунт в Telegraph и сохранить токен.
     """
-    from telegraph import Telegraph
+    service = TelegraphService()
     try:
-        tg = Telegraph()
-        acc = tg.create_account(short_name=short_name)
-        token_path = os.path.join(os.path.expanduser("~"), ".wup_telegraph_token")
-        with open(token_path, "w") as f:
-            f.write(acc['access_token'])
+        acc = service.auth(short_name)
         console.print(f"[bold green]✔ Аккаунт '{short_name}' создан! Токен сохранен.[/bold green]")
         if 'auth_url' in acc:
             console.print(f"[bold cyan]URL для логина в браузере:[/bold cyan] {acc['auth_url']}")
@@ -207,10 +127,6 @@ def publish(json_path: str):
         console.print(f"[bold red]Ожидается путь к .json файлу:[/bold red] {json_path}")
         raise typer.Exit(code=1)
     
-    import json
-    import markdown
-    from telegraph import Telegraph
-
     try:
         with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -219,42 +135,49 @@ def publish(json_path: str):
         console.print(f"[bold red]Ошибка чтения JSON:[/bold red] {e}")
         raise typer.Exit(code=1)
 
-    template_name = "default.md"
+    service = TelegraphService()
     try:
-        template = env.get_template(template_name)
-    except Exception as e:
-        console.print(f"[bold red]Ошибка загрузки шаблона:[/bold red] {e}")
-        raise typer.Exit(code=1)
-
-    md_content = template.render(**context.model_dump())
-    html_content = markdown.markdown(md_content, extensions=['fenced_code', 'tables'])
-    
-    # Telegraph supports only h3 and h4 headers, not h1 or h2
-    html_content = html_content.replace("<h1>", "<h3>").replace("</h1>", "</h3>")
-    html_content = html_content.replace("<h2>", "<h4>").replace("</h2>", "</h4>")
-
-    try:
-        token_path = os.path.join(os.path.expanduser("~"), ".wup_telegraph_token")
-        if os.path.exists(token_path):
-            with open(token_path, "r") as f:
-                token = f.read().strip()
-            tg = Telegraph(access_token=token)
-        else:
-            tg = Telegraph()
-            acc = tg.create_account(short_name=context.team or "writeup-automatizator")
-            with open(token_path, "w") as f:
-                f.write(acc['access_token'])
-
-        response = tg.create_page(
-            context.title,
-            html_content=html_content,
-            author_name=context.team
-        )
-        url = response['url']
+        url = service.publish(context)
         console.print(f"[bold green]✔ Опубликовано в Telegraph:[/bold green] {url}")
     except Exception as e:
         console.print(f"[bold red]Ошибка публикации в Telegraph:[/bold red] {e}")
         raise typer.Exit(code=1)
+
+@app.command(name="list")
+def list_writeups(
+    base_dir: Optional[str] = typer.Option(
+        None, "--dir", "-d", help="Директория с райтапами (по умолчанию текущая)"
+    )
+):
+    """
+    Показать список всех локальных райтапов.
+    """
+    manager = WriteupManager(base_dir=base_dir)
+    if not os.path.exists(manager.writeups_dir):
+        console.print(f"[bold yellow]Папка writeups не найдена в {manager.base_dir}[/bold yellow]")
+        raise typer.Exit()
+        
+    table = Table(title="Локальные райтапы", show_header=True, header_style="bold magenta")
+    table.add_column("Категория", style="cyan")
+    table.add_column("Название")
+    table.add_column("Сложность")
+    table.add_column("Дата")
+    table.add_column("MD файл")
+
+    results = manager.get_all_writeups()
+    if not results:
+        console.print("[bold yellow]Райтапы не найдены.[/bold yellow]")
+        raise typer.Exit()
+        
+    for data, md_exists_bool in results:
+        md_exists = "[green]Да[/green]" if md_exists_bool else "[red]Нет[/red]"
+        cat = data.get("category", "-")
+        title = data.get("title", "-")
+        diff = data.get("difficulty", "-")
+        date = data.get("date", "-")
+        table.add_row(cat, title, diff, date, md_exists)
+            
+    console.print(table)
 
 if __name__ == "__main__":
     app()
