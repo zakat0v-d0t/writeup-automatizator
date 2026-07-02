@@ -11,9 +11,11 @@
 ```
 # 1. Клонируйте репозиторий  
 git clone https://github.com/zakat0v-d0t/writeup-automatizator.git  
-cd writeup-automator  
+cd writeup-automatizator  
   
 # 2. Установите зависимости и саму утилиту  
+uv venv
+source .venv/bin/activate
 uv pip install -e .
 ```
 
