@@ -3,19 +3,22 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "writeup"
+name = "writeup-automatizator"
 version = "0.1.0"
-description = "Writeup Automator"
+description = "writeup-automatizator"
 dependencies = [
     "typer",
     "rich",
     "jinja2",
     "pydantic",
-    "click"
+    "click",
+    "telegraph",
+    "markdown"
 ]
 
 [project.scripts]
 writeup = "source.main:app"
+wup = "source.main:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["source"]

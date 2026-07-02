@@ -19,7 +19,7 @@
 {{ step.description }}
 
 {% if step.commands %}
-```bash
+```{{ step.language | default('bash') }}
 {{ step.commands }}
 ```
 {% endif %}
