@@ -83,6 +83,11 @@ def init():
     safe_title = title.lower().replace(" ", "_").replace("'", "").replace('"', '')
     output_dir = os.path.join(os.getcwd(), "writeups", str(datetime.date.today().year), category)
     os.makedirs(output_dir, exist_ok=True)
+    
+    json_path = os.path.join(output_dir, f"{safe_title}.json")
+    with open(json_path, "w", encoding="utf-8") as f:
+        f.write(context.model_dump_json(indent=4))
+        
     output_path = os.path.join(output_dir, f"{safe_title}.md")
     
     with open(output_path, "w", encoding="utf-8") as f:
@@ -91,18 +96,56 @@ def init():
     console.print(f"\n[bold green]✔ Writeup сгенерирован:[/bold green] {output_path}")
 
 @app.command()
-def edit():
+def edit(
+    filepath: str,
+    editor: Optional[str] = typer.Option(None, "--editor", "-e", help="Редактор для использования (nano, vim, code и т.д.)")
+):
     """
-    Edit an existing writeup. (Not implemented)
+    Edit an existing writeup state (.json) or markdown file.
     """
-    console.print("Not implemented yet.")
+    if not os.path.exists(filepath):
+        console.print(f"[bold red]Файл не найден:[/bold red] {filepath}")
+        raise typer.Exit(code=1)
+    
+    import click
+    click.edit(filename=filepath, editor=editor)
+    console.print(f"[bold green]✔ Файл сохранен:[/bold green] {filepath}")
+    
+    if filepath.endswith(".json"):
+        console.print("[bold cyan]Запустите `writeup generate <путь_к_json>` для обновления .md файла.[/bold cyan]")
 
 @app.command()
-def generate():
+def generate(json_path: str):
     """
-    Final generation of .md file. (Not implemented)
+    Generate the final .md file from a .json state file.
     """
-    console.print("Not implemented yet.")
+    if not os.path.exists(json_path) or not json_path.endswith(".json"):
+        console.print(f"[bold red]Ожидается путь к .json файлу:[/bold red] {json_path}")
+        raise typer.Exit(code=1)
+    
+    import json
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        context = WriteupContext(**data)
+    except Exception as e:
+        console.print(f"[bold red]Ошибка чтения JSON:[/bold red] {e}")
+        raise typer.Exit(code=1)
+        
+    template_name = "default.md"
+    try:
+        template = env.get_template(template_name)
+    except Exception as e:
+        console.print(f"[bold red]Ошибка загрузки шаблона:[/bold red] {e}")
+        raise typer.Exit(code=1)
+        
+    content = template.render(**context.model_dump())
+    
+    output_path = json_path.replace(".json", ".md")
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(content)
+        
+    console.print(f"[bold green]✔ Writeup обновлен:[/bold green] {output_path}")
 
 if __name__ == "__main__":
     app()

@@ -10,7 +10,8 @@ dependencies = [
     "typer",
     "rich",
     "jinja2",
-    "pydantic"
+    "pydantic",
+    "click"
 ]
 
 [project.scripts]

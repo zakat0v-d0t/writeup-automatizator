@@ -4,6 +4,8 @@ annotated-doc==0.0.4
     # via typer
 annotated-types==0.7.0
     # via pydantic
+click==8.4.2
+    # via writeup (pyproject.toml)
 jinja2==3.1.6
     # via writeup (pyproject.toml)
 markdown-it-py==4.2.0
