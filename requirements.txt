@@ -4,6 +4,8 @@ annotated-doc==0.0.4
     # via typer
 annotated-types==0.7.0
     # via pydantic
+beautifulsoup4==4.15.0
+    # via writeup-automatizator (pyproject.toml)
 certifi==2026.6.17
     # via requests
 charset-normalizer==3.4.7
@@ -28,6 +30,8 @@ pydantic-core==2.46.4
     # via pydantic
 pygments==2.20.0
     # via rich
+python-dotenv==1.2.2
+    # via writeup-automatizator (pyproject.toml)
 requests==2.34.2
     # via telegraph
 rich==15.0.0
@@ -36,12 +40,15 @@ rich==15.0.0
     #   typer
 shellingham==1.5.4
     # via typer
+soupsieve==2.8.4
+    # via beautifulsoup4
 telegraph==2.2.0
     # via writeup-automatizator (pyproject.toml)
 typer==0.26.8
     # via writeup-automatizator (pyproject.toml)
 typing-extensions==4.15.0
     # via
+    #   beautifulsoup4
     #   pydantic
     #   pydantic-core
     #   typing-inspection

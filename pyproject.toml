@@ -13,7 +13,9 @@ dependencies = [
     "pydantic",
     "click",
     "telegraph",
-    "markdown"
+    "markdown",
+    "python-dotenv",
+    "beautifulsoup4"
 ]
 
 [project.scripts]

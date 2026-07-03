@@ -1,18 +1,19 @@
+import re
+
 def detect_language(code: str) -> str:
     if not code:
         return "bash"
     
-    if any(kw in code for kw in ["import ", "def ", "print(", "sys.", "requests.", "from "]):
+    if re.search(r'\b(?:import|def|print|sys\.|requests\.|from)\b', code):
         return "python"
     
-    if any(kw in code for kw in ["#include", "int main", "printf(", "std::"]):
+    if re.search(r'\b(?:#include|int main|printf|std::)\b', code):
         return "c"
         
-    code_lower = code.lower()
-    if any(kw in code_lower for kw in ["select ", "union ", "insert ", "drop ", "where "]):
+    if re.search(r'\b(?:select|union|insert|drop|where)\b', code, re.IGNORECASE):
         return "sql"
         
-    if any(kw in code for kw in ["console.log", "const ", "let ", "=>", "function("]):
+    if re.search(r'\b(?:console\.log|const|let|function)\b|=>', code):
         return "javascript"
         
     if "<?php" in code or "$_GET" in code or "$_POST" in code or "echo $" in code:
@@ -21,7 +22,7 @@ def detect_language(code: str) -> str:
     if code.strip().startswith("{") and code.strip().endswith("}"):
         return "json"
         
-    if any(kw in code_lower for kw in ["mov ", "push ", "pop ", "xor ", "eax,", "rax,", "jmp ", "ret"]):
+    if re.search(r'\b(?:mov|push|pop|xor|eax|rax|jmp|ret)\b', code, re.IGNORECASE):
         return "asm"
         
     return "bash"

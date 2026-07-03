@@ -1,10 +1,13 @@
 import os
+import re
 import json
 import stat
 import glob
 from jinja2 import Environment, FileSystemLoader
 import markdown
 from telegraph import Telegraph
+from dotenv import load_dotenv, set_key
+from bs4 import BeautifulSoup
 
 from .models import WriteupContext
 
@@ -17,7 +20,7 @@ class WriteupManager:
         self.writeups_dir = os.path.join(self.base_dir, "writeups")
 
     def save_writeup(self, context: WriteupContext, year: str) -> str:
-        safe_title = context.title.lower().replace(" ", "_").replace("'", "").replace('"', '')
+        safe_title = re.sub(r'[^a-z0-9]+', '_', context.title.lower()).strip('_')
         target_dir = os.path.join(self.writeups_dir, year, context.category)
         os.makedirs(target_dir, exist_ok=True)
         
@@ -61,16 +64,13 @@ class TelegraphService:
         self.token_path = os.path.join(os.path.expanduser("~"), ".writeup.env")
 
     def _get_token(self) -> str:
-        if os.path.exists(self.token_path):
-            with open(self.token_path, "r") as f:
-                for line in f:
-                    if line.startswith("TELEGRAPH_TOKEN="):
-                        return line.strip().split("=", 1)[1]
-        return None
+        load_dotenv(self.token_path)
+        return os.environ.get("TELEGRAPH_TOKEN")
 
     def _save_token(self, token: str):
-        with open(self.token_path, "w") as f:
-            f.write(f"TELEGRAPH_TOKEN={token}\\n")
+        if not os.path.exists(self.token_path):
+            open(self.token_path, "a").close()
+        set_key(self.token_path, "TELEGRAPH_TOKEN", token)
         os.chmod(self.token_path, stat.S_IRUSR | stat.S_IWUSR)
 
     def auth(self, short_name: str) -> dict:
@@ -92,8 +92,12 @@ class TelegraphService:
         md_content = template.render(**context.model_dump())
         html_content = markdown.markdown(md_content, extensions=['fenced_code', 'tables'])
         
-        html_content = html_content.replace("<h1>", "<h3>").replace("</h1>", "</h3>")
-        html_content = html_content.replace("<h2>", "<h4>").replace("</h2>", "</h4>")
+        soup = BeautifulSoup(html_content, "html.parser")
+        for h1 in soup.find_all("h1"):
+            h1.name = "h3"
+        for h2 in soup.find_all("h2"):
+            h2.name = "h4"
+        html_content = str(soup)
 
         response = tg.create_page(
             context.title,

@@ -4,8 +4,8 @@ from typing import List, Optional
 class Step(BaseModel):
     title: str
     description: str
-    commands: Optional[str] = ""
-    language: Optional[str] = "bash"
+    commands: str = ""
+    language: str = "bash"
 
 class WriteupContext(BaseModel):
     title: str
@@ -13,7 +13,7 @@ class WriteupContext(BaseModel):
     difficulty: str
     flag: str
     description: str
-    link: Optional[str] = ""
+    link: str = ""
     team: str
     date: str
     steps: List[Step] = []
