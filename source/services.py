@@ -8,6 +8,7 @@ import markdown
 from telegraph import Telegraph
 from dotenv import load_dotenv, set_key
 from bs4 import BeautifulSoup
+from deep_translator import GoogleTranslator
 
 from .models import WriteupContext
 
@@ -105,3 +106,21 @@ class TelegraphService:
             author_name=context.team
         )
         return response['url']
+
+class TranslationService:
+    def translate_context(self, context_data: dict, target_lang: str) -> dict:
+        translator = GoogleTranslator(source='auto', target=target_lang)
+        
+        if context_data.get("title"):
+            context_data["title"] = translator.translate(context_data["title"])
+        if context_data.get("description"):
+            context_data["description"] = translator.translate(context_data["description"])
+            
+        if "steps" in context_data:
+            for step in context_data["steps"]:
+                if step.get("title"):
+                    step["title"] = translator.translate(step["title"])
+                if step.get("description"):
+                    step["description"] = translator.translate(step["description"])
+                    
+        return context_data

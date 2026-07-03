@@ -5,12 +5,16 @@ annotated-doc==0.0.4
 annotated-types==0.7.0
     # via pydantic
 beautifulsoup4==4.15.0
-    # via writeup-automatizator (pyproject.toml)
+    # via
+    #   writeup-automatizator (pyproject.toml)
+    #   deep-translator
 certifi==2026.6.17
     # via requests
 charset-normalizer==3.4.7
     # via requests
 click==8.4.2
+    # via writeup-automatizator (pyproject.toml)
+deep-translator==1.11.4
     # via writeup-automatizator (pyproject.toml)
 idna==3.18
     # via requests
@@ -33,7 +37,9 @@ pygments==2.20.0
 python-dotenv==1.2.2
     # via writeup-automatizator (pyproject.toml)
 requests==2.34.2
-    # via telegraph
+    # via
+    #   deep-translator
+    #   telegraph
 rich==15.0.0
     # via
     #   writeup-automatizator (pyproject.toml)

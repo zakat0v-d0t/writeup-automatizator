@@ -10,7 +10,7 @@ import json
 
 from .models import Step, WriteupContext
 from .utils import detect_language
-from .services import WriteupManager, TelegraphService
+from .services import WriteupManager, TelegraphService, TranslationService
 
 app = typer.Typer(help="writeup-automatizator")
 console = Console()
@@ -178,6 +178,33 @@ def list_writeups(
         table.add_row(cat, title, diff, date, md_exists)
             
     console.print(table)
+
+@app.command()
+def translate(json_path: str, target_lang: str = "en"):
+    """
+    Автоперевод райтапа (Google Translate).
+    """
+    if not os.path.exists(json_path) or not json_path.endswith(".json"):
+        console.print(f"[bold red]Ожидается путь к .json файлу:[/bold red] {json_path}")
+        raise typer.Exit(code=1)
+        
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            
+        service = TranslationService()
+        console.print(f"[cyan]Переводим на {target_lang}...[/cyan]")
+        translated_data = service.translate_context(data, target_lang)
+        
+        out_path = json_path.replace(".json", f"_{target_lang}.json")
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(translated_data, f, indent=4, ensure_ascii=False)
+            
+        console.print(f"[bold green]✔ Перевод сохранен:[/bold green] {out_path}")
+        console.print(f"[cyan]Запустите `wup generate {out_path}` для создания .md файла.[/cyan]")
+    except Exception as e:
+        console.print(f"[bold red]Ошибка перевода:[/bold red] {e}")
+        raise typer.Exit(code=1)
 
 if __name__ == "__main__":
     app()

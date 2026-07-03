@@ -15,7 +15,8 @@ dependencies = [
     "telegraph",
     "markdown",
     "python-dotenv",
-    "beautifulsoup4"
+    "beautifulsoup4",
+    "deep-translator"
 ]
 
 [project.scripts]
