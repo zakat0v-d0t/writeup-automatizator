@@ -16,6 +16,7 @@ from .markdown import MarkdownService
 from .api import TelegraphService, TranslationService
 from .exceptions import WriteupError
 from .config import load_config
+from .tui import WriteupApp
 
 app = typer.Typer(help="writeup-automatizator")
 console = Console()
@@ -28,13 +29,26 @@ def handle_error(e: Exception):
 def init(
     output_dir: Optional[str] = typer.Option(
         None, "--output-dir", "-o", help="Директория для сохранения райтапов"
-    )
+    ),
+    use_tui: bool = typer.Option(False, "--tui", "-t", help="Использовать TUI")
 ):
     """Интерактивное создание нового writeup'а."""
     cfg = load_config()
-    def_author = cfg.get("author", "r007s")
     out_dir = output_dir or cfg.get("output_dir", None)
     
+    if use_tui:
+        app_tui = WriteupApp(cfg=cfg, out_dir=out_dir)
+        result = app_tui.run()
+        
+        if result and str(result).startswith("ERROR:"):
+            handle_error(Exception(result[6:]))
+        elif result:
+            console.print(f"\n[bold green]✔ Writeup сгенерирован:[/bold green] {result}")
+        else:
+            console.print("[yellow]Отменено.[/yellow]")
+        return
+        
+    def_author = cfg.get("author", "r007s")
     console.print("[bold green]writeup-automatizator - Создание нового writeup'a[/bold green]")
     
     title = Prompt.ask("Название таска")
