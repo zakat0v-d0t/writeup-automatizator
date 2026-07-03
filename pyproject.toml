@@ -16,7 +16,8 @@ dependencies = [
     "markdown",
     "python-dotenv",
     "beautifulsoup4",
-    "deep-translator"
+    "deep-translator",
+    "pyyaml"
 ]
 
 [project.scripts]

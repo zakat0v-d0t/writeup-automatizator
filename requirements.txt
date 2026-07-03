@@ -36,6 +36,8 @@ pygments==2.20.0
     # via rich
 python-dotenv==1.2.2
     # via writeup-automatizator (pyproject.toml)
+pyyaml==6.0.3
+    # via writeup-automatizator (pyproject.toml)
 requests==2.34.2
     # via
     #   deep-translator

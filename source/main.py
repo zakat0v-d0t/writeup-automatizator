@@ -15,6 +15,7 @@ from .storage import StorageService
 from .markdown import MarkdownService
 from .api import TelegraphService, TranslationService
 from .exceptions import WriteupError
+from .config import load_config
 
 app = typer.Typer(help="writeup-automatizator")
 console = Console()
@@ -30,6 +31,10 @@ def init(
     )
 ):
     """Интерактивное создание нового writeup'а."""
+    cfg = load_config()
+    def_author = cfg.get("author", "r007s")
+    out_dir = output_dir or cfg.get("output_dir", None)
+    
     console.print("[bold green]writeup-automatizator - Создание нового writeup'a[/bold green]")
     
     title = Prompt.ask("Название таска")
@@ -38,7 +43,7 @@ def init(
     flag = Prompt.ask("Флаг", default="ctf{...}")
     description = Prompt.ask("Краткое описание таска", default="")
     link = Prompt.ask("Ссылка на таск (опционально)", default="")
-    team = Prompt.ask("Команда/Автор", default="r007s")
+    team = Prompt.ask("Команда/Автор", default=def_author)
     
     steps = []
     console.print("\n[bold cyan]Шаги решения[/bold cyan]")
@@ -59,7 +64,7 @@ def init(
     )
     
     try:
-        storage = StorageService(base_dir=output_dir)
+        storage = StorageService(base_dir=out_dir)
         safe_title = re.sub(r'[^a-z0-9]+', '_', context.title.lower()).strip('_')
         json_path = storage.save_json(context, str(datetime.date.today().year), safe_title)
         
@@ -162,8 +167,10 @@ def list_writeups(
     console.print(table)
 
 @app.command()
-def translate(json_path: str, target_lang: str = "en"):
+def translate(json_path: str, target_lang: Optional[str] = typer.Argument(None)):
     """Автоперевод райтапа (Google Translate)."""
+    cfg = load_config()
+    target_lang = target_lang or cfg.get("default_language", "en")
     if not os.path.exists(json_path) or not json_path.endswith(".json"):
         handle_error(Exception(f"Ожидается путь к .json файлу: {json_path}"))
         
