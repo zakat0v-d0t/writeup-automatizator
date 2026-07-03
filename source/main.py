@@ -5,15 +5,23 @@ from rich.table import Table
 import datetime
 import os
 import click
-from typing import Optional
 import json
+import re
+from typing import Optional
 
 from .models import Step, WriteupContext
 from .utils import detect_language
-from .services import WriteupManager, TelegraphService, TranslationService
+from .storage import StorageService
+from .markdown import MarkdownService
+from .api import TelegraphService, TranslationService
+from .exceptions import WriteupError
 
 app = typer.Typer(help="writeup-automatizator")
 console = Console()
+
+def handle_error(e: Exception):
+    console.print(f"[bold red]Ошибка:[/bold red] {e}")
+    raise typer.Exit(code=1)
 
 @app.command()
 def init(
@@ -21,9 +29,7 @@ def init(
         None, "--output-dir", "-o", help="Директория для сохранения райтапов"
     )
 ):
-    """
-    Интерактивное создание нового writeup'а.
-    """
+    """Интерактивное создание нового writeup'а."""
     console.print("[bold green]writeup-automatizator - Создание нового writeup'a[/bold green]")
     
     title = Prompt.ask("Название таска")
@@ -35,50 +41,43 @@ def init(
     team = Prompt.ask("Команда/Автор", default="r007s")
     
     steps = []
-    console.print("\\n[bold cyan]Шаги решения[/bold cyan]")
+    console.print("\n[bold cyan]Шаги решения[/bold cyan]")
     while True:
         step_title = Prompt.ask("Заголовок шага (оставьте пустым для завершения)", default="")
         if not step_title:
             break
         step_desc = Prompt.ask("Описание того, что делал", default="")
-        step_cmds = Prompt.ask("Команды (опционально, используйте \\\\n для переносов)", default="")
-        cmds_formatted = step_cmds.replace("\\\\n", "\\n")
+        step_cmds = Prompt.ask("Команды (опционально, используйте \\n для переносов)", default="")
+        cmds_formatted = step_cmds.replace("\\n", "\n")
         lang = detect_language(cmds_formatted)
         steps.append(Step(title=step_title, description=step_desc, commands=cmds_formatted, language=lang))
     
-    date_str = datetime.date.today().isoformat()
-    
     context = WriteupContext(
-        title=title,
-        category=category,
-        difficulty=difficulty,
-        flag=flag,
-        description=description,
-        link=link,
-        team=team,
-        date=date_str,
-        steps=steps
+        title=title, category=category, difficulty=difficulty, flag=flag,
+        description=description, link=link, team=team, 
+        date=datetime.date.today().isoformat(), steps=steps
     )
     
-    manager = WriteupManager(base_dir=output_dir)
     try:
-        output_path = manager.save_writeup(context, str(datetime.date.today().year))
-        console.print(f"\\n[bold green]✔ Writeup сгенерирован:[/bold green] {output_path}")
-    except Exception as e:
-        console.print(f"[bold red]Ошибка сохранения:[/bold red] {e}")
+        storage = StorageService(base_dir=output_dir)
+        safe_title = re.sub(r'[^a-z0-9]+', '_', context.title.lower()).strip('_')
+        json_path = storage.save_json(context, str(datetime.date.today().year), safe_title)
+        
+        md_service = MarkdownService()
+        output_path = md_service.generate(context, json_path)
+        
+        console.print(f"\n[bold green]✔ Writeup сгенерирован:[/bold green] {output_path}")
+    except WriteupError as e:
+        handle_error(e)
 
 @app.command()
 def edit(
     filepath: str,
-    editor: Optional[str] = typer.Option(None, "--editor", "-e", help="Редактор для использования (nano, vim, code и т.д.)")
+    editor: Optional[str] = typer.Option(None, "--editor", "-e", help="Редактор для использования")
 ):
-    """
-    Редактировать существующий файл (.json или .md).
-    Используйте --editor или -e для выбора редактора.
-    """
+    """Редактировать существующий файл (.json или .md)."""
     if not os.path.exists(filepath):
-        console.print(f"[bold red]Файл не найден:[/bold red] {filepath}")
-        raise typer.Exit(code=1)
+        handle_error(Exception(f"Файл не найден: {filepath}"))
     
     click.edit(filename=filepath, editor=editor)
     console.print(f"[bold green]✔ Файл сохранен:[/bold green] {filepath}")
@@ -88,60 +87,45 @@ def edit(
 
 @app.command()
 def generate(json_path: str):
-    """
-    Генерация итогового .md файла из .json состояния.
-    """
+    """Генерация итогового .md файла из .json состояния."""
     if not os.path.exists(json_path) or not json_path.endswith(".json"):
-        console.print(f"[bold red]Ожидается путь к .json файлу:[/bold red] {json_path}")
-        raise typer.Exit(code=1)
+        handle_error(Exception(f"Ожидается путь к .json файлу: {json_path}"))
     
-    manager = WriteupManager()
     try:
-        output_path = manager.generate_markdown(json_path)
+        storage = StorageService()
+        context = storage.load_json(json_path)
+        md_service = MarkdownService()
+        output_path = md_service.generate(context, json_path)
         console.print(f"[bold green]✔ Writeup обновлен:[/bold green] {output_path}")
-    except Exception as e:
-        console.print(f"[bold red]Ошибка генерации:[/bold red] {e}")
-        raise typer.Exit(code=1)
+    except WriteupError as e:
+        handle_error(e)
 
 @app.command(name="auth-telegraph")
 def auth_telegraph(short_name: str):
-    """
-    Создать новый аккаунт в Telegraph и сохранить токен.
-    """
-    service = TelegraphService()
+    """Создать новый аккаунт в Telegraph и сохранить токен."""
     try:
+        service = TelegraphService()
         acc = service.auth(short_name)
         console.print(f"[bold green]✔ Аккаунт '{short_name}' создан! Токен сохранен.[/bold green]")
         if 'auth_url' in acc:
             console.print(f"[bold cyan]URL для логина в браузере:[/bold cyan] {acc['auth_url']}")
-    except Exception as e:
-        console.print(f"[bold red]Ошибка создания аккаунта:[/bold red] {e}")
-        raise typer.Exit(code=1)
+    except WriteupError as e:
+        handle_error(e)
 
 @app.command()
 def publish(json_path: str):
-    """
-    Публикация райтапа в Telegraph.
-    """
+    """Публикация райтапа в Telegraph."""
     if not os.path.exists(json_path) or not json_path.endswith(".json"):
-        console.print(f"[bold red]Ожидается путь к .json файлу:[/bold red] {json_path}")
-        raise typer.Exit(code=1)
+        handle_error(Exception(f"Ожидается путь к .json файлу: {json_path}"))
     
     try:
-        with open(json_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        context = WriteupContext(**data)
-    except Exception as e:
-        console.print(f"[bold red]Ошибка чтения JSON:[/bold red] {e}")
-        raise typer.Exit(code=1)
-
-    service = TelegraphService()
-    try:
+        storage = StorageService()
+        context = storage.load_json(json_path)
+        service = TelegraphService()
         url = service.publish(context)
         console.print(f"[bold green]✔ Опубликовано в Telegraph:[/bold green] {url}")
-    except Exception as e:
-        console.print(f"[bold red]Ошибка публикации в Telegraph:[/bold red] {e}")
-        raise typer.Exit(code=1)
+    except WriteupError as e:
+        handle_error(e)
 
 @app.command(name="list")
 def list_writeups(
@@ -149,12 +133,10 @@ def list_writeups(
         None, "--dir", "-d", help="Директория с райтапами (по умолчанию текущая)"
     )
 ):
-    """
-    Показать список всех локальных райтапов.
-    """
-    manager = WriteupManager(base_dir=base_dir)
-    if not os.path.exists(manager.writeups_dir):
-        console.print(f"[bold yellow]Папка writeups не найдена в {manager.base_dir}[/bold yellow]")
+    """Показать список всех локальных райтапов."""
+    storage = StorageService(base_dir=base_dir)
+    if not os.path.exists(storage.writeups_dir):
+        console.print(f"[bold yellow]Папка writeups не найдена в {storage.base_dir}[/bold yellow]")
         raise typer.Exit()
         
     table = Table(title="Локальные райтапы", show_header=True, header_style="bold magenta")
@@ -164,7 +146,7 @@ def list_writeups(
     table.add_column("Дата")
     table.add_column("MD файл")
 
-    results = manager.get_all_writeups()
+    results = storage.get_all()
     if not results:
         console.print("[bold yellow]Райтапы не найдены.[/bold yellow]")
         raise typer.Exit()
@@ -181,12 +163,9 @@ def list_writeups(
 
 @app.command()
 def translate(json_path: str, target_lang: str = "en"):
-    """
-    Автоперевод райтапа (Google Translate).
-    """
+    """Автоперевод райтапа (Google Translate)."""
     if not os.path.exists(json_path) or not json_path.endswith(".json"):
-        console.print(f"[bold red]Ожидается путь к .json файлу:[/bold red] {json_path}")
-        raise typer.Exit(code=1)
+        handle_error(Exception(f"Ожидается путь к .json файлу: {json_path}"))
         
     try:
         with open(json_path, "r", encoding="utf-8") as f:
@@ -203,8 +182,7 @@ def translate(json_path: str, target_lang: str = "en"):
         console.print(f"[bold green]✔ Перевод сохранен:[/bold green] {out_path}")
         console.print(f"[cyan]Запустите `wup generate {out_path}` для создания .md файла.[/cyan]")
     except Exception as e:
-        console.print(f"[bold red]Ошибка перевода:[/bold red] {e}")
-        raise typer.Exit(code=1)
+        handle_error(e)
 
 if __name__ == "__main__":
     app()
