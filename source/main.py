@@ -181,7 +181,7 @@ def list_writeups(
     console.print(table)
 
 @app.command()
-def translate(json_path: str, target_lang: Optional[str] = typer.Argument(None)):
+def translate(json_path: str, target_lang: Optional[str] = typer.Option(None, "--target-lang", help="Целевой язык (например, en)")):
     """Автоперевод райтапа (Google Translate)."""
     cfg = load_config()
     target_lang = target_lang or cfg.get("default_language", "en")
