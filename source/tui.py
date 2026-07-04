@@ -111,4 +111,4 @@ class WriteupApp(App):
             output_path = md_service.generate(context, json_path)
             self.exit(output_path)
         except Exception as e:
-            self.exit(f"ERROR:{e}")
+            self.exit(e)

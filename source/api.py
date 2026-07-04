@@ -3,6 +3,7 @@ import stat
 import markdown
 from bs4 import BeautifulSoup
 from telegraph import Telegraph
+from telegraph.exceptions import TelegraphException
 from dotenv import load_dotenv, set_key
 from deep_translator import GoogleTranslator
 
@@ -20,7 +21,8 @@ class TelegraphService:
 
     def _save_token(self, token: str):
         if not os.path.exists(self.token_path):
-            open(self.token_path, "a").close()
+            with open(self.token_path, "a"):
+                pass
         set_key(self.token_path, "TELEGRAPH_TOKEN", token)
         os.chmod(self.token_path, stat.S_IRUSR | stat.S_IWUSR)
 
@@ -30,7 +32,7 @@ class TelegraphService:
             acc = tg.create_account(short_name=short_name)
             self._save_token(acc['access_token'])
             return acc
-        except Exception as e:
+        except TelegraphException as e:
             raise ApiAuthError(f"Ошибка авторизации Telegraph: {e}")
 
     def publish(self, context: WriteupContext) -> str:
@@ -60,7 +62,7 @@ class TelegraphService:
                 author_name=context.team
             )
             return response['url']
-        except Exception as e:
+        except TelegraphException as e:
             raise ApiAuthError(f"Ошибка публикации Telegraph: {e}")
 
 class TranslationService:

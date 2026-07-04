@@ -1,5 +1,6 @@
 import os
 from jinja2 import Environment, FileSystemLoader
+from jinja2.exceptions import TemplateError
 from .models import WriteupContext
 from .exceptions import MarkdownGenerationError
 
@@ -17,5 +18,5 @@ class MarkdownService:
                 f.write(content)
                 
             return output_path
-        except Exception as e:
+        except (TemplateError, OSError) as e:
             raise MarkdownGenerationError(f"Ошибка генерации MD: {e}")

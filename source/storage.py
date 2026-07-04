@@ -39,6 +39,8 @@ class StorageService:
                     data = json.load(f)
                 md_exists = os.path.exists(j_path.replace(".json", ".md"))
                 results.append((data, md_exists))
-            except Exception:
+            except Exception as e:
+                import logging
+                logging.error(f"Ошибка чтения JSON {j_path}: {e}")
                 continue
         return results

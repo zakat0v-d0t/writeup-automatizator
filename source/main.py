@@ -4,6 +4,7 @@ from rich.prompt import Prompt
 from rich.table import Table
 import datetime
 import os
+from pathlib import Path
 import click
 import json
 import re
@@ -40,8 +41,8 @@ def init(
         app_tui = WriteupApp(cfg=cfg, out_dir=out_dir)
         result = app_tui.run()
         
-        if result and str(result).startswith("ERROR:"):
-            handle_error(Exception(result[6:]))
+        if isinstance(result, Exception):
+            handle_error(result)
         elif result:
             console.print(f"\n[bold green]✔ Writeup сгенерирован:[/bold green] {result}")
         else:
@@ -107,7 +108,7 @@ def edit(
 @app.command()
 def generate(json_path: str):
     """Генерация итогового .md файла из .json состояния."""
-    if not os.path.exists(json_path) or not json_path.endswith(".json"):
+    if not os.path.exists(json_path) or Path(json_path).suffix != ".json":
         handle_error(Exception(f"Ожидается путь к .json файлу: {json_path}"))
     
     try:
@@ -134,7 +135,7 @@ def auth_telegraph(short_name: str):
 @app.command()
 def publish(json_path: str):
     """Публикация райтапа в Telegraph."""
-    if not os.path.exists(json_path) or not json_path.endswith(".json"):
+    if not os.path.exists(json_path) or Path(json_path).suffix != ".json":
         handle_error(Exception(f"Ожидается путь к .json файлу: {json_path}"))
     
     try:
@@ -185,7 +186,7 @@ def translate(json_path: str, target_lang: Optional[str] = typer.Option(None, "-
     """Автоперевод райтапа (Google Translate)."""
     cfg = load_config()
     target_lang = target_lang or cfg.get("default_language", "en")
-    if not os.path.exists(json_path) or not json_path.endswith(".json"):
+    if not os.path.exists(json_path) or Path(json_path).suffix != ".json":
         handle_error(Exception(f"Ожидается путь к .json файлу: {json_path}"))
         
     try:
