@@ -197,7 +197,8 @@ def translate(json_path: str, target_lang: Optional[str] = typer.Option(None, "-
         console.print(f"[cyan]Переводим на {target_lang}...[/cyan]")
         translated_data = service.translate_context(data, target_lang)
         
-        out_path = str(Path(json_path).with_suffix(f"_{target_lang}.json"))
+        p = Path(json_path)
+        out_path = str(p.with_name(f"{p.stem}_{target_lang}{p.suffix}"))
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(translated_data, f, indent=4, ensure_ascii=False)
             
