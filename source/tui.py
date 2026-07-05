@@ -12,18 +12,35 @@ from .utils import detect_language
 
 class StepInput(Static):
     def compose(self) -> ComposeResult:
-        yield Label("Заголовок шага")
+        with Horizontal(classes="step-header"):
+            yield Label("Заголовок шага", classes="step-label")
+            yield Button("ⓧ", variant="error", classes="remove-step-btn")
         yield Input(classes="step-title")
         yield Label("Описание шага")
         yield TextArea(classes="step-desc")
         yield Label("Код/Команды")
         yield TextArea(classes="step-cmds")
 
+    @on(Button.Pressed, ".remove-step-btn")
+    def remove_self(self) -> None:
+        self.remove()
+
 class WriteupApp(App):
     CSS = """
     Input, Select { margin-bottom: 1; }
     TextArea { height: 5; margin-bottom: 1; }
     StepInput { margin-top: 1; padding: 1; border: solid green; }
+    .step-header {
+        height: 3;
+    }
+    .step-label {
+        width: 1fr;
+        padding-top: 1;
+    }
+    .remove-step-btn {
+        width: 5;
+        min-width: 5;
+    }
     #buttons_container {
         dock: bottom;
         height: auto;
@@ -111,4 +128,4 @@ class WriteupApp(App):
             output_path = md_service.generate(context, json_path)
             self.exit(output_path)
         except Exception as e:
-            self.exit(e)
+            self.exit(e)    
