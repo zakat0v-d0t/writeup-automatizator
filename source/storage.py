@@ -1,6 +1,7 @@
 import os
 import json
 import glob
+from pathlib import Path
 from .models import WriteupContext
 from .exceptions import StorageError
 
@@ -37,7 +38,7 @@ class StorageService:
             try:
                 with open(j_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                md_exists = os.path.exists(j_path.replace(".json", ".md"))
+                md_exists = os.path.exists(str(Path(j_path).with_suffix(".md")))
                 results.append((data, md_exists))
             except Exception as e:
                 import logging

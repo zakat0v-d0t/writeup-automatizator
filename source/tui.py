@@ -104,7 +104,7 @@ class WriteupApp(App):
         
         try:
             storage = StorageService(base_dir=self.out_dir)
-            safe_title = re.sub(r'[^a-z0-9]+', '_', context.title.lower()).strip('_')
+            safe_title = re.sub(r'[^\w]+', '_', context.title.lower()).strip('_') or 'untitled'
             json_path = storage.save_json(context, str(datetime.date.today().year), safe_title)
             
             md_service = MarkdownService()

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 from jinja2.exceptions import TemplateError
 from .models import WriteupContext
@@ -13,7 +14,7 @@ class MarkdownService:
             template = env.get_template("default.md")
             content = template.render(**context.model_dump())
             
-            output_path = json_path.replace(".json", ".md")
+            output_path = str(Path(json_path).with_suffix(".md"))
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(content)
                 

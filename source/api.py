@@ -47,7 +47,7 @@ class TelegraphService:
 
             template = env.get_template("default.md")
             md_content = template.render(**context.model_dump())
-            html_content = markdown.markdown(md_content, extensions=['fenced_code', 'tables'])
+            html_content = markdown.markdown(md_content, extensions=['fenced_code', 'tables', 'toc', 'admonition'])
             
             soup = BeautifulSoup(html_content, "html.parser")
             for h1 in soup.find_all("h1"):

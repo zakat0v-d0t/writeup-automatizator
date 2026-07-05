@@ -80,7 +80,7 @@ def init(
     
     try:
         storage = StorageService(base_dir=out_dir)
-        safe_title = re.sub(r'[^a-z0-9]+', '_', context.title.lower()).strip('_')
+        safe_title = re.sub(r'[^\w]+', '_', context.title.lower()).strip('_') or 'untitled'
         json_path = storage.save_json(context, str(datetime.date.today().year), safe_title)
         
         md_service = MarkdownService()
@@ -197,7 +197,7 @@ def translate(json_path: str, target_lang: Optional[str] = typer.Option(None, "-
         console.print(f"[cyan]Переводим на {target_lang}...[/cyan]")
         translated_data = service.translate_context(data, target_lang)
         
-        out_path = json_path.replace(".json", f"_{target_lang}.json")
+        out_path = str(Path(json_path).with_suffix(f"_{target_lang}.json"))
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(translated_data, f, indent=4, ensure_ascii=False)
             
